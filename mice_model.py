@@ -89,9 +89,9 @@ interp_ko = rec_ko.reshape((N_MICE_KO, N_REGIONS * N_RECEPTORS))
 #rec_ko_norm = row_normalize(interp_ko)
 
 
-# S equilibrium states from receptor densities
-
-
+# TODO: S equilibrium states from receptor densities?
+# or is it propagation weight parameters
+S = np.random.rand(N_RECEPTORS)
 
 # TODO: build MCM matrix A
 # A_m,n(i,j;t) 
