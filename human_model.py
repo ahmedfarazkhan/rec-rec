@@ -37,10 +37,14 @@ for row in ws.rows:
  
 mouse_receptors = np.asarray([str(r) for r in rec_densities[0][3:-2]] )
 
-common_receptors = ['AMPA', 'MK80?', 'KAIN', 'MUSC', 'FLUM', 'CGP5?', 'PIRE', 'OXOT', 'DAMP', 'EPIB', 'PRAZ', 'KETA', 'DPAT', 'SCH?' ]
-missing_mouse_receptors = ['LY34', 'UK14', 'RACL', 'DPMG'] # RACL only for basal ganglia
-missing_human_receptors = ['RX']
+#human_recs = [AMPA NMDA kainate muscimol flum cgp pire oxo damp epib praz rx dpat keta sch]
+common_receptors = ['AMPA', 'MK80?', 'KAIN', 'MUSC', 'FLUM', 'CGP5?', 'PIRE', 'OXOT', 'DAMP', 'EPIB', 'PRAZ', 'UK14', 'KETA', 'DPAT', 'SCH?' ]
+missing_mouse_receptors = ['LY34', 'RACL', 'DPMG'] # RACL only for basal ganglia
+#missing_human_receptors = ['RX'] = UK14
 
+mice_rec_in_human_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 12, 14] 
+
+# missing_mice_indices = [3, 12, 16, 17]
 
 '''
 Mouse receptors

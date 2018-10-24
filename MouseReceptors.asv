@@ -17,7 +17,7 @@
 % dS(t)/dt =  A^Human S + Bu
 %
 % Region i, receptor j MECS matrix
-% To do: better imputation, A signed?, mouse A, close to singular gram
+% To do: better imputation, A signed?, mouse A
 
 N_META_COLS = 3; % Metadata in Excel file (group, animal, region)
 N_MICE_KO = 6;
@@ -38,18 +38,12 @@ ko_densities = importdata('.\data\Knockout mice_data/ko_densities.mat');
 
 ko_dims = size(ko_densities);
 
-MECS_matrix = zeros(ko_dims(2), ko_dims(3));
-
 % Iterate over knockout mouse brain regions
 for reg=1:ko_dims(2)
-    X_ctrl = squeeze(ctrl_densities(1,reg,:));
-    X_ko = squeeze(ko_densities(1,reg,:)); 
+    X_ctrl = ctrl_densities(1,reg,:);
+    X_ko = ko_densities(1,reg,:);
+    disp
     [MECS,U_MECS,MECS_times,B] = TargetControl(A_human,X_ctrl,X_ko,0.0,1.0);
-    MECS_matrix(reg,:) = MECS;
-    disp(MECS)
 end
-
-disp(MECS_matrix)
-save('MECS_matrix.mat','MECS_matrix');
 
 %[MECS,U_MECS,MECS_times,B] = TargetControl(A_human,X_ctrl,X_ko,0.0,1.0);
