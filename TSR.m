@@ -54,7 +54,7 @@ end
 % Constraint for the maximum number of principal components extracted by TSR.
 % Useful to reduce long computation time.
 % Uncomment if necessary.
-% ncomp=min(ncomp,0.75*p,50);
+%ncomp=min(ncomp,0.75*p,50);
 
 h = waitbar(0,'Imputing Data..., step 1');
 for i=n:-1:1,

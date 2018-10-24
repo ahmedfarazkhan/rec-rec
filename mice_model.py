@@ -111,28 +111,23 @@ ko_2d = rec_ko.reshape((N_MICE_KO, N_REGIONS * N_RECEPTORS))
 ctrl_2d = replace_none(ctrl_2d)
 ko_2d = replace_none(ko_2d)
 
-ctrl_df = pd.DataFrame(data=ctrl_2d)
-#ctrl_df = ctrl_df.replace(None, np.NaN, inplace=True)
-ko_df = pd.DataFrame(data=ko_2d)
-#ko_df = ko_df.replace(None, np.NaN, inplace=True)
+#ctrl_df = pd.DataFrame(data=ctrl_2d)
+#ko_df = pd.DataFrame(data=ko_2d)
 
 #print(ctrl_df.isnull().sum())
 #print(ko_df.isnull().sum())
 
-# Todo: use different interpolation
-
-ctrl_df.fillna(ctrl_df.mean(), inplace=True)
-ko_df.fillna(ko_df.mean(), inplace=True)
+# Todo: use different imputation
+#ctrl_df.fillna(ctrl_df.mean(), inplace=True)
+#ko_df.fillna(ko_df.mean(), inplace=True)
 
 # Todo: Normalize
-ctrl_3d = ctrl_df.values.reshape((N_MICE_CTRL, N_REGIONS, N_RECEPTORS))
-ko_3d = ko_df.values.reshape((N_MICE_KO, N_REGIONS, N_RECEPTORS))
-
-
+#ctrl_3d = ctrl_2d.reshape((N_MICE_CTRL, N_REGIONS, N_RECEPTORS))
+#ko_3d = ko_2d.reshape((N_MICE_KO, N_REGIONS, N_RECEPTORS))
 
 # Save as Matlab matrices
-scipy.io.savemat(os.path.join(os.getcwd(), 'data/Knockout mice_data/ctrl_densities.mat'), mdict={'rec_ctrl': ctrl_3d})
-scipy.io.savemat(os.path.join(os.getcwd(), 'data/Knockout mice_data/ko_densities.mat'), mdict={'rec_ko': ko_3d})
+scipy.io.savemat(os.path.join(os.getcwd(), 'data/Knockout mice_data/ctrl_densities.mat'), mdict={'rec_ctrl': ctrl_2d.astype('double')})
+scipy.io.savemat(os.path.join(os.getcwd(), 'data/Knockout mice_data/ko_densities.mat'), mdict={'rec_ko': ko_2d.astype('double')})
 
 '''
 
