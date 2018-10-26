@@ -7,6 +7,13 @@
 %   - One region
 %   - Receptor-receptor interactions
 %
+% Level 2:
+%   - Same-species A
+%   - Methods for A
+%
+% Level 3:
+%   - Control
+%
 % Ahmed, October 2018
 % 
 % Human rec indexing:
@@ -18,6 +25,13 @@
 %
 % Region i, receptor j MECS matrix
 % To do: better imputation, A signed?, mouse A, close to singular gram
+% A: - species (mice), derivation methods
+% Control: energy definition, time window
+
+N_CTRL = 7;
+N_KO = 6;
+N_REGS = 20;
+N_RECS = 15;
 
 % Same receptor order as human data, A matrix
 rec_list = {'AMPA', 'MK80', 'KAIN', 'MUSC', 'FLUM', 'CGP5', 'PIRE', 'OXOT', 'DAMP', 'EPIB', 'PRAZ', 'UK14', 'KETA', 'DPAT', 'SCH2'};
@@ -34,31 +48,58 @@ Pvalues = human_data.Pvalues;
 % [mouse, region, receptor]
 ctrl_densities = importdata('.\data\Knockout mice_data/ctrl_densities.mat');
 ko_densities = importdata('.\data\Knockout mice_data/ko_densities.mat');
-ko_dims = size(ko_densities);
 
 % Impute data using Trimmed Scores Regression (TSR)
 missing_data = cat(1, ctrl_densities, ko_densities);
 imputed_data = TSR(missing_data);
 
-MECS_matrix_signs = zeros(ko_dims(2), ko_dims(3));
+% Note: 70% explained variance because of low sample size 
+imputed_data = reshape(imputed_data, N_CTRL+N_KO, N_REGS, N_RECS);
 
- 
-% % Calculating average densities
-% X_ctrl = squeeze(mean(ctrl_densities,1)); M = mean(squeeze(mean(ctrl_densities,1))); S = std(squeeze(mean(ctrl_densities,1)));
-% X_ctrl = (X_ctrl - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
-% X_ko   = squeeze(mean(ko_densities,1));
-% X_ko   = (X_ko - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
-% 
-% % Iterate over knockout mouse brain regions
-% for reg=1:ko_dims(2)
-%     %     X_ctrl = squeeze(ctrl_densities(1,reg,:));
-%     %     X_ko = squeeze(ko_densities(1,reg,:));
-%     z_t0 = X_ctrl(reg,:)'-X_ctrl(reg,:)';
-%     z_tf = X_ko(reg,:)'-X_ctrl(reg,:)';
-%     [MECS,U_MECS,MECS_times,B] = TargetControl(A_human_signs,z_tf,z_t0,0.0,0.5);
-%     MECS_matrix_signs(reg,:) = MECS;
-%     disp(MECS)
-% end
-% 
-% %disp(MECS_matrix_signs)
-% save('MECS_matrix_signs.mat','MECS_matrix_signs');
+%% 
+
+% Split and reshape data - note Matlab reshapes using a different dimension
+% order compared to Python
+reshaped_data = permute(reshape(imputed_data, N_CTRL+N_KO, N_RECS, N_REGS), [1 3 2]);
+ctrl_dens = reshaped_data(1:N_CTRL,:,:);
+ko_dens = reshaped_data(N_CTRL+1:N_CTRL+N_KO,:,:);
+
+% Initialize Minimum Control Energies matrix
+ko_dims = size(ko_dens);
+
+%%%
+
+%%
+MECS_matrix = zeros(ko_dims(2), ko_dims(3));
+
+% Calculate average densities from wild type (control) mice
+X_ctrl = squeeze(mean(ctrl_dens,1)); 
+M = mean(squeeze(mean(ctrl_dens,1))); 
+S = std(squeeze(mean(ctrl_dens,1)));
+X_ctrl = (X_ctrl - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
+
+% Calculate average densities of knockout mice
+X_ko   = squeeze(mean(ko_dens,1));
+X_ko   = (X_ko - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
+
+% Iterate over knockout mouse brain regions
+for reg=1:ko_dims(2)
+    %     X_ctrl = squeeze(ctrl_dens(1,reg,:));
+    %     X_ko = squeeze(ko_dens(1,reg,:));
+    z_t0 = X_ctrl(reg,:)'-X_ctrl(reg,:)';
+    z_tf = X_ko(reg,:)'-X_ctrl(reg,:)';
+    [MECS,U_MECS,MECS_times,B] = TargetControl(A_human_signs,z_tf,z_t0,0.0,0.5);
+    MECS_matrix(reg,:) = MECS;
+    disp(MECS)
+end
+
+save('MECS_matrix_signed.mat','MECS_matrix');
+
+%%
+
+imagesc(MECS_matrix)
+title('Unsigned');
+xlabel('Receptors');
+ylabel('Regions');
+set(gca, 'XTick', [1:1:15], 'XTickLabel', rec_list) 
+set(gca, 'YTick', [1:1:20], 'YTickLabel', reg_list)
