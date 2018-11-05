@@ -7,9 +7,13 @@
 %   - One region
 %   - Receptor-receptor interactions
 %
-% Level 2:
-%   - Same-species A
-%   - Methods for A
+% Level 2: Methods for A
+%   - | genie |
+%   - genie x sign corr
+%   - (genie x sign corr)  x Pvalue(<0.05)
+%   - deconvolutued corr
+%   - partial corr (Matlab partialcorr(x,y,z))
+% 
 %
 % Level 3:
 %   - Control
@@ -67,7 +71,6 @@ ko_dens = reshaped_data(N_CTRL+1:N_CTRL+N_KO,:,:);
 % Initialize Minimum Control Energies matrix
 ko_dims = size(ko_dens);
 
-%%%
 
 %%
 MECS_matrix = zeros(ko_dims(2), ko_dims(3));
@@ -88,12 +91,15 @@ for reg=1:ko_dims(2)
     %     X_ko = squeeze(ko_dens(1,reg,:));
     z_t0 = X_ctrl(reg,:)'-X_ctrl(reg,:)';
     z_tf = X_ko(reg,:)'-X_ctrl(reg,:)';
-    [MECS,U_MECS,MECS_times,B] = TargetControl(A_human_signs,z_tf,z_t0,0.0,0.5);
+    [MECS,U_MECS,MECS_times,B] = TargetControl(A_human_signs,z_tf,z_t0,0.0,1.0);
     MECS_matrix(reg,:) = MECS;
     disp(MECS)
 end
 
-save('MECS_matrix_signed.mat','MECS_matrix');
+%%
+save('.\output\MECS_matrix_signed.mat','MECS_matrix');
+save('.\output\imputed_ctrl_densities.mat','ctrl_dens');
+save('.\output\imputed_ko_densities.mat','ko_dens');
 
 %%
 
@@ -103,3 +109,5 @@ xlabel('Receptors');
 ylabel('Regions');
 set(gca, 'XTick', [1:1:15], 'XTickLabel', rec_list) 
 set(gca, 'YTick', [1:1:20], 'YTickLabel', reg_list)
+%%
+% Using mice A matrices
