@@ -30,16 +30,19 @@ rec_data = reshape(ctrl_dens, n_data(1) * n_data(2), n_data(3));
 % GENIE3
 [A_corr, p] = corrcoef(rec_data);
 A_genie = genie3(rec_data);
+A_genie = A_genie + (eye(size(A_genie)) - diag(sum(abs(A_genie))));
 
 A_genie_sign = A_genie .* sign(A_corr);
+A_genie_sign = A_genie_sign + (eye(size(A_genie_sign)) - diag(sum(abs(A_genie_sign))));
 
 % Only significant (p<0.05) correlations
 A_genie_pval = A_genie_sign; 
-p_indices = find(p>=0.05); 
-A_genie_pval(p_indices) = 0;
+p_indices = find(p>=0.05);  
+A_genie_pval(p_indices) = 0; % Todo: add diagonal?
 
 % Network deconvolution on A matrix?
 A_ND = ND(A_genie);
+A_ND = A_ND + (eye(size(A_ND)) - diag(sum(abs(A_ND))));
 A_pc = partialcorr(rec_data);
 
-save('.\output\A_mice.m','A_genie', 'A_genie_sign', 'A_genie_pval', 'A_ND', 'A_pc');
+save('.\output\A_mice.mat', 'A_genie', 'A_genie_sign', 'A_genie_pval', 'A_ND', 'A_pc');
