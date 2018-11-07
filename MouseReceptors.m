@@ -18,6 +18,8 @@
 % Level 3:
 %   - Control
 %
+%   - ND without diagonals and A matrix, human with PC/ND,  
+% 
 % Ahmed, October 2018
 % 
 % Human rec indexing:
@@ -32,29 +34,30 @@
 % A: - species (mice), derivation methods
 % Control: energy definition, time window
 
-N_CTRL = 7;
-N_KO = 6;
-N_REGS = 20;
-N_RECS = 15;
 
 % Same receptor order as human data, A matrix
 rec_list = {'AMPA', 'MK80', 'KAIN', 'MUSC', 'FLUM', 'CGP5', 'PIRE', 'OXOT', 'DAMP', 'EPIB', 'PRAZ', 'UK14', 'KETA', 'DPAT', 'SCH2'};
 reg_list = {'Au1_l', 'Au1_r', 'C_l', 'C_r', 'CM', 'CPu_l', 'CPu_r', 'Hip_l', 'Hip_r', 'M1_l', 'M1_r', 'RN', 'S1BF_l', 'S1BF_r', 'V1_l', 'V1_r', 'VPL_l', 'VPL_r', 'VPM_l', 'VPM_r'};
+N_CTRL = 7;
+N_KO = 6;
+N_REGS = numel(reg_list);
+N_RECS = numel(rec_list);
 
-% Load human A matrix
-human_data = importdata('.\data\Human\A_recp_vs_recp_matrix_human.mat');
-A_human = human_data.A_human;
-A_human = A_human + (eye(size(A_human)) - diag(sum(abs(A_human))));
+% % Load human A matrix
+% human_data = importdata('.\data\Human\A_recp_vs_recp_matrix_human.mat');
+% A_h_unsign = human_data.A_human;
+% A_h_unsign = A_h_unsign + (eye(size(A_h_unsign)) - diag(sum(abs(A_h_unsign))));
+% 
+% A_h_sign = human_data.A_human_signs;
+% A_h_sign = A_h_sign + (eye(size(A_h_sign)) - diag(sum(abs(A_h_sign))));
+% 
+% % Only siginifcant p-vals
+% Pvalues = human_data.Pvalues;
+% A_h_pval = A_h_sign;
+% p_indices = find(Pvalues>=0.05);  
+% A_h_pval(p_indices) = 0;
 
-A_human_signs = human_data.A_human_signs;
-A_human_signs = A_human_signs + (eye(size(A_human_signs)) - diag(sum(abs(A_human_signs))));
-
-% Only siginifcant p-vals
-Pvalues = human_data.Pvalues;
-A_human_pval = A_human_signs;
-p_indices = find(Pvalues>=0.05);  
-A_human_pval(p_indices) = 0;
-
+%%
 % Load mice receptor densities
 % [mouse, region, receptor]
 ctrl_densities = importdata('.\data\Knockout mice_data/ctrl_densities.mat');
@@ -90,38 +93,11 @@ X_ko   = squeeze(mean(ko_dens,1));
 X_ko   = (X_ko - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
 
 %%
-% MECS_matrix = zeros(ko_dims(2), ko_dims(3));
-% 
-% % Calculate average densities from wild type (control) mice
-% X_ctrl = squeeze(mean(ctrl_dens,1)); 
-% M = mean(squeeze(mean(ctrl_dens,1))); 
-% S = std(squeeze(mean(ctrl_dens,1)));
-% X_ctrl = (X_ctrl - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
-% 
-% % Calculate average densities of knockout mice
-% X_ko   = squeeze(mean(ko_dens,1));
-% X_ko   = (X_ko - repmat(M,[size(X_ctrl,1) 1]))./repmat(S,[size(X_ctrl,1) 1]);
-% 
-% % Iterate over knockout mouse brain regions
-% for reg=1:ko_dims(2)
-%     %     X_ctrl = squeeze(ctrl_dens(1,reg,:));
-%     %     X_ko = squeeze(ko_dens(1,reg,:));
-%     z_t0 = X_ctrl(reg,:)'-X_ctrl(reg,:)';
-%     z_tf = X_ko(reg,:)'-X_ctrl(reg,:)';
-%     [MECS,U_MECS,MECS_times,B] = TargetControl(A_human_signs,z_tf,z_t0,0.0,1.0);
-%     MECS_matrix(reg,:) = MECS;
-%     disp(MECS)
-% end
-% 
-% save('.\output\MECS_matrix_signed.mat','MECS_matrix');
-
-
-%%
 % Using mice A matrices
-load('.\output\A_mice.mat', 'A_genie', 'A_genie_sign', 'A_genie_pval', 'A_ND', 'A_pc');
+load('.\output\adjacency_matrices.mat', 'As', 'Anames');
 
-Anames = {'A_{human}', 'A_{human,sign}', 'A_{human,pval}', 'A_{genie}', 'A_{genie,sign}', 'A_{genie,p}', 'A_{ND}', 'A_{pc}'};
-As = cat(3, A_human, A_human_signs, A_human_pval, A_genie, A_genie_sign, A_genie_pval, A_ND, A_pc);
+%Anames = cat(2, Anames, {'A_{h,unsign}', 'A_{h,sign}', 'A_{h,pval}'});
+%As = cat(3, As, A_h_unsign, A_h_sign, A_h_pval);
 
 %%
 
@@ -136,6 +112,8 @@ for atype=1:numel(Anames)
     
     % Iterate over knockout mouse brain regions
     for reg=1:ko_dims(2)
+        % Reachability, not controllability 
+        % Transgenic densities are the final state
         z_t0 = X_ctrl(reg,:)'-X_ctrl(reg,:)';
         z_tf = X_ko(reg,:)'-X_ctrl(reg,:)';
         [MECS,U_MECS,MECS_times,B] = TargetControl(A_curr, z_tf, z_t0, 0.0, 1.0);
@@ -145,14 +123,8 @@ for atype=1:numel(Anames)
         disp([atype reg])
     end
     disp(atype)
-%     imagesc(MECS_matrix)
-%     title('Unsigned');
-%     xlabel('Receptors');
-%     ylabel('Regions');
-%     set(gca, 'XTick', [1:1:15], 'XTickLabel', rec_list)
-%     set(gca, 'YTick', [1:1:20], 'YTickLabel', reg_list)
-    
 end
 
 save('.\output\MECS_matrices.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
+    
     
