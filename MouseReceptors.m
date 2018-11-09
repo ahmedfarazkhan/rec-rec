@@ -43,43 +43,29 @@ N_KO = 6;
 N_REGS = numel(reg_list);
 N_RECS = numel(rec_list);
 
-% % Load human A matrix
-% human_data = importdata('.\data\Human\A_recp_vs_recp_matrix_human.mat');
-% A_h_unsign = human_data.A_human;
-% A_h_unsign = A_h_unsign + (eye(size(A_h_unsign)) - diag(sum(abs(A_h_unsign))));
-% 
-% A_h_sign = human_data.A_human_signs;
-% A_h_sign = A_h_sign + (eye(size(A_h_sign)) - diag(sum(abs(A_h_sign))));
-% 
-% % Only siginifcant p-vals
-% Pvalues = human_data.Pvalues;
-% A_h_pval = A_h_sign;
-% p_indices = find(Pvalues>=0.05);  
-% A_h_pval(p_indices) = 0;
-
 %%
-% Load mice receptor densities
-% [mouse, region, receptor]
-ctrl_densities = importdata('.\data\Knockout mice_data/ctrl_densities.mat');
-ko_densities = importdata('.\data\Knockout mice_data/ko_densities.mat');
+% % Load mice receptor densities
+% % [mouse, region, receptor]
+% ctrl_densities = importdata('.\data\Knockout mice_data/ctrl_densities.mat');
+% ko_densities = importdata('.\data\Knockout mice_data/ko_densities.mat');
+% 
+% % Impute data using Trimmed Scores Regression (TSR)
+% missing_data = cat(1, ctrl_densities, ko_densities);
+% imputed_data = TSR(missing_data);
+% 
+% % Note: 70% explained variance because of low sample size 
+% imputed_data = reshape(imputed_data, N_CTRL+N_KO, N_REGS, N_RECS);
+% 
+% %% 
+% 
+% % Split and reshape data - note Matlab reshapes using a different dimension
+% % order compared to Python
+% reshaped_data = permute(reshape(imputed_data, N_CTRL+N_KO, N_RECS, N_REGS), [1 3 2]);
+% ctrl_dens = reshaped_data(1:N_CTRL,:,:);
+% ko_dens = reshaped_data(N_CTRL+1:N_CTRL+N_KO,:,:);
 
-% Impute data using Trimmed Scores Regression (TSR)
-missing_data = cat(1, ctrl_densities, ko_densities);
-imputed_data = TSR(missing_data);
-
-% Note: 70% explained variance because of low sample size 
-imputed_data = reshape(imputed_data, N_CTRL+N_KO, N_REGS, N_RECS);
-
-%% 
-
-% Split and reshape data - note Matlab reshapes using a different dimension
-% order compared to Python
-reshaped_data = permute(reshape(imputed_data, N_CTRL+N_KO, N_RECS, N_REGS), [1 3 2]);
-ctrl_dens = reshaped_data(1:N_CTRL,:,:);
-ko_dens = reshaped_data(N_CTRL+1:N_CTRL+N_KO,:,:);
-
-save('.\output\imputed_ctrl_densities.mat','ctrl_dens');
-save('.\output\imputed_ko_densities.mat','ko_dens');
+load('.\output\imputed_ctrl_densities.mat','ctrl_dens');
+load('.\output\imputed_ko_densities.mat','ko_dens');
 
 %%
 % Calculate average densities from wild type (control) mice
@@ -105,7 +91,7 @@ load('.\output\adjacency_matrices.mat', 'As', 'Anames');
 ko_dims = size(ko_dens);
 MECS_matrices = zeros(numel(Anames), ko_dims(2), ko_dims(3));
 
-for atype=1:numel(Anames)
+for atype=18%:numel(Anames)
     
     A_curr = As(:,:,atype);
     %MECS_matrix = zeros(ko_dims(2), ko_dims(3));
@@ -124,6 +110,8 @@ for atype=1:numel(Anames)
     end
     disp(atype)
 end
+
+%%
 
 save('.\output\MECS_matrices.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
     
