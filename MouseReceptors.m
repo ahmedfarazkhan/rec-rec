@@ -91,10 +91,15 @@ load('.\output\adjacency_matrices.mat', 'As', 'Anames');
 ko_dims = size(ko_dens);
 MECS_matrices = zeros(numel(Anames), ko_dims(2), ko_dims(3));
 
-for atype=18%:numel(Anames)
+for atype=19%:numel(Anames)
     
     A_curr = As(:,:,atype);
-    %MECS_matrix = zeros(ko_dims(2), ko_dims(3));
+    
+%     % For Bayesian network adjacency matrices
+%     if atype >= 18
+%         A_curr = A_curr + (randn(size(A_curr)) * 0.001);
+%     end
+%     
     
     % Iterate over knockout mouse brain regions
     for reg=1:ko_dims(2)
@@ -111,8 +116,12 @@ for atype=18%:numel(Anames)
     disp(atype)
 end
 
-%%
 
+
+%%
+% As = cat(3, As, A_curr);
+% MECS_matrices = cat(1, MECS_matrices, temp);
+% Anames = cat(2, Anames, 'A_{h+m,bn}');
 save('.\output\MECS_matrices.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
     
     

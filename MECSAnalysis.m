@@ -37,9 +37,10 @@ scatter(reshape(human, [1 15*15]), reshape(mice, [1 15*15]))
 cftool
 
 %% Intra-species
-mice1 = As(:,:,13); mice2 = As(:,:,11); x1 = mice1(:); y1 = mice2(:);
+mice1 = As(:,:,18); mice2 = As(:,:,19); x1 = mice1(:); y1 = mice2(:);
 
-scatter(reshape(human, [1 15*15]) , reshape(mice, [1 15*15]))
+scatter(reshape(mice1, [1 N_RECS*N_RECS]) , reshape(mice2, [1 N_RECS*N_RECS]))
+
 cftool
 
 %

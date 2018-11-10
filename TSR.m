@@ -46,7 +46,7 @@ end
 B(isnan(B)==1)=0;
 [u,s,v]=svd(B);
 diags=diag(s);
-while ve<0.9
+while ve<0.7%0.9
     ncomp=ncomp+1;
     ve=ve+diags(ncomp)/sum(diags);
 end
@@ -54,7 +54,7 @@ end
 % Constraint for the maximum number of principal components extracted by TSR.
 % Useful to reduce long computation time.
 % Uncomment if necessary.
-%ncomp=min(ncomp,0.75*p,50);
+% ncomp=min(ncomp,0.75*p,50);
 
 h = waitbar(0,'Imputing Data..., step 1');
 for i=n:-1:1,
