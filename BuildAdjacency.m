@@ -10,7 +10,8 @@
 %   - partial corr (Matlab partialcorr(x,y,z))
 %   - Maximize similarity between species (e.g. Bayesian, GENIE methods)
 %   - Kullback-Leibler/other distance measure
-%   - NORMALIZE Mice/human
+%   - NORMALIZE Mice/human - but 2D?
+%   - Randomize data order? and check phenotype predictions
 %
 % Ahmed, October 2018
 % 
@@ -52,7 +53,7 @@ human_normed = (human_data - repmat(human_mean,[size(human_data,1) 1]))./repmat(
 ko_normed = (ko_dens - repmat(ctrl_mean,[size(ko_dens,1) 1]))./repmat(ctrl_std,[size(ko_dens,1) 1]);
 
 
-%% Human
+%% Human - existing A matrices
 
 disp('Building human adjacency matrices')
 
@@ -70,7 +71,7 @@ A_h_pval = A_h_sign;
 p_indices = find(Pvalues>=0.05);  
 A_h_pval(p_indices) = 0;
 
-%% Human 
+%% Human - generated
 
 % Genie3
 [A_h_corr, p] = corrcoef(human_normed);
@@ -114,6 +115,7 @@ A_m_pc = partialcorr(ctrl_normed);
 
 
 %% Bayesian networks
+disp('Bayesian networks')
 data = cat(1, ctrl_normed, ko_normed);
 n_data_ctrl = size(ctrl_normed);
 n_data_ko = size(ko_normed);
@@ -133,12 +135,12 @@ priorPrecision.alpha  = 100;
 priorPrecision.sigma2 = 1;
 priorPrecision.maxParents = N_signs + 1;
 BFTHRESH = 0;
-nboots   = 10000;
+nboots   = 1000;
 verbose  = 1;
-BootsAdjMat = BootstrapLearn(Signal, Signal_names, pheno, priorPrecision, nboots, 'ExhaustiveBN', verbose, BFTHRESH);
-save('.\output\A_BN.mat','BootsAdjMatMice')
+BootsAdjMatMice = BootstrapLearn(Signal, Signal_names, pheno, priorPrecision, nboots, 'ExhaustiveBN', verbose, BFTHRESH);
+save('.\output\A_{m,bn}.mat','BootsAdjMatMice')
 
-A_m_bn = BootsAdjMat(1:N_RECS, 1:N_RECS);
+A_m_bn = BootsAdjMatMice(1:N_RECS, 1:N_RECS);
 %A_m_bn = A_m_bn + (randn(size(A_m_bn)) * 0.001); 
 % Frequency of appearance in BNs interpretation
 A_m_bn = A_m_bn - diag(diag(A_m_bn)) + eye(size(A_m_bn));
@@ -171,7 +173,7 @@ verbose  = 1;
 BootsAdjMatHM = BootstrapLearn(Signal, Signal_names, pheno, priorPrecision, nboots, 'ExhaustiveBN', verbose, BFTHRESH);
 save('.\output\A_{h+m,bn}.mat','BootsAdjMatHM')
 
-A_hm_bn = BootsAdjMat(1:N_RECS, 1:N_RECS);
+A_hm_bn = BootsAdjMatHM(1:N_RECS, 1:N_RECS);
 %A_hm_bn = A_hm_bn %+ (randn(size(A_hm_bn)) * 0.001); 
 % Frequency of appearance in BNs interpretation
 A_hm_bn = A_hm_bn - diag(diag(A_hm_bn)) + eye(size(A_hm_bn));

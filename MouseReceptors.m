@@ -43,26 +43,7 @@ N_KO = 6;
 N_REGS = numel(reg_list);
 N_RECS = numel(rec_list);
 
-%%
-% % Load mice receptor densities
-% % [mouse, region, receptor]
-% ctrl_densities = importdata('.\data\Knockout mice_data/ctrl_densities.mat');
-% ko_densities = importdata('.\data\Knockout mice_data/ko_densities.mat');
-% 
-% % Impute data using Trimmed Scores Regression (TSR)
-% missing_data = cat(1, ctrl_densities, ko_densities);
-% imputed_data = TSR(missing_data);
-% 
-% % Note: 70% explained variance because of low sample size 
-% imputed_data = reshape(imputed_data, N_CTRL+N_KO, N_REGS, N_RECS);
-% 
-% %% 
-% 
-% % Split and reshape data - note Matlab reshapes using a different dimension
-% % order compared to Python
-% reshaped_data = permute(reshape(imputed_data, N_CTRL+N_KO, N_RECS, N_REGS), [1 3 2]);
-% ctrl_dens = reshaped_data(1:N_CTRL,:,:);
-% ko_dens = reshaped_data(N_CTRL+1:N_CTRL+N_KO,:,:);
+%% Load imputed data
 
 load('.\output\imputed_ctrl_densities.mat','ctrl_dens');
 load('.\output\imputed_ko_densities.mat','ko_dens');
@@ -91,15 +72,15 @@ load('.\output\adjacency_matrices.mat', 'As', 'Anames');
 ko_dims = size(ko_dens);
 MECS_matrices = zeros(numel(Anames), ko_dims(2), ko_dims(3));
 
-for atype=19%:numel(Anames)
+for atype=1:numel(Anames)
     
     A_curr = As(:,:,atype);
     
-%     % For Bayesian network adjacency matrices
-%     if atype >= 18
-%         A_curr = A_curr + (randn(size(A_curr)) * 0.001);
-%     end
-%     
+    % For Bayesian network adjacency matrices
+    if atype >= 18
+        A_curr = A_curr + (randn(size(A_curr)) * 0.001);
+    end
+    
     
     % Iterate over knockout mouse brain regions
     for reg=1:ko_dims(2)
@@ -119,9 +100,6 @@ end
 
 
 %%
-% As = cat(3, As, A_curr);
-% MECS_matrices = cat(1, MECS_matrices, temp);
-% Anames = cat(2, Anames, 'A_{h+m,bn}');
 save('.\output\MECS_matrices.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
     
     
