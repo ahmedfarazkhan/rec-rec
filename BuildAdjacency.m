@@ -52,6 +52,22 @@ human_normed = (human_data - repmat(human_mean,[size(human_data,1) 1]))./repmat(
 % Normalize KO data using control normalization parameters
 ko_normed = (ko_dens - repmat(ctrl_mean,[size(ko_dens,1) 1]))./repmat(ctrl_std,[size(ko_dens,1) 1]);
 
+% Data not normalized
+ctrl_normed = ctrl_dens;
+ko_normed = ko_dens;
+human_normed = human_data;
+
+% %% Random permutations of data rows
+%   randseed = 1;
+%   
+%   ko_perm = randperm(size(ko_normed, 1));
+%   ko_normed = ko_normed(ko_perm, :);
+%  
+%   ctrl_perm = randperm(size(ctrl_normed, 1));
+%   ctrl_normed = ctrl_normed(ctrl_perm, :);
+%   
+%   human_perm = randperm(size(human_normed, 1));
+%   human_normed = human_normed(human_perm, :);
 
 %% Human - existing A matrices
 
@@ -114,7 +130,7 @@ A_m_ND_genie = ND(A_m_genie);
 A_m_pc = partialcorr(ctrl_normed);
 
 
-%% Bayesian networks
+%% Bayesian networks - Mice
 disp('Bayesian networks')
 data = cat(1, ctrl_normed, ko_normed);
 n_data_ctrl = size(ctrl_normed);
@@ -179,6 +195,7 @@ A_hm_bn = BootsAdjMatHM(1:N_RECS, 1:N_RECS);
 A_hm_bn = A_hm_bn - diag(diag(A_hm_bn)) + eye(size(A_hm_bn));
 
 
+
 %%
 disp('Saving A matrices')
 
@@ -190,5 +207,44 @@ Anames = {'A_{h,unsign}', 'A_{h,sign}', 'A_{h,pval}', 'A_{h,corr}', 'A_{h,genie,
 As = cat(3, A_h_unsign, A_h_sign, A_h_pval, A_h_corr,  A_h_genie, A_h_genie_sign, A_h_genie_pval, A_h_ND_corr, A_h_ND_genie, A_h_pc, A_m_corr, A_m_genie, A_m_genie_sign, A_m_genie_pval, A_m_ND_corr, A_m_ND_genie, A_m_pc, A_m_bn, A_hm_bn);
 
 % 'A_genie', 'A_genie_sign', 'A_genie_pval', 'A_ND_corr', 'A_ND_genie', 'A_pc',
-save('.\output\adjacency_matrices.mat', 'As', 'Anames');
+%fname = sprintf('.\output\adjacency_matrices_randperm_seed=%d.mat', randseed);
+save('.\output\adjacency_matrices', 'As', 'Anames');
+    
 
+%% Bayesian networks - KO or WT
+disp('Bayesian networks - KO or WT')
+
+data = ctrl_normed; %ko_normed
+n_data = size(data);
+
+
+N_signs = numel(rec_list);
+disc    = zeros(N_signs,1);
+disc(N_signs + 1) = 1;
+for i = 1:N_signs
+    Signal_names{i,1} = char(rec_list(i)); %['receptor_' num2str(i)];
+    Signal(:,i)       = data(:,i); %Z1(i,:);
+end
+
+subjects = 1:(n_data(1) / N_REGS);
+Signal(:,N_signs+1) = repelem(subjects, N_REGS);
+Signal_names{N_signs+1,1} = 'KO_or_WT';
+pheno                 = 'KO_or_WT';
+priorPrecision.nu     = 100;
+priorPrecision.alpha  = 100;
+priorPrecision.sigma2 = 1;
+priorPrecision.maxParents = N_signs + 1;
+BFTHRESH = 0;
+nboots   = 1000;
+verbose  = 1;
+
+analysis_title='PhenoPredict';
+BootsAdjMatMice_clear = BootstrapLearn(Signal, Signal_names, pheno, priorPrecision, nboots, 'ExhaustiveBN', verbose, BFTHRESH);
+save('.\output\A_{m,bn,ctrl}.mat','BootsAdjMatMice_ctrl')
+
+% fprintf(1,'Learning Most Predictive Network Structure for %s\n', analysis_title);
+% [MBNet, FullBN, outstats] = LearnStructure(Signal, Signal_names, pheno, priorPrecision, [analysis_title,'-net']);
+% 
+% for i=1:N_RECS+1
+%     FullBN.nodes(i)
+% end

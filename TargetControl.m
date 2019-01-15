@@ -1,4 +1,4 @@
-function [MECS,U_MECS,MECS_times,B] = TargetControl(A,X_t0,X_tf,t0,tf,driver_nodes,time_step);
+function [MECS,Us_MECS,MECS_times,B] = TargetControl(A,X_t0,X_tf,t0,tf,driver_nodes,time_step);
 % X_t0: column vector of state space for initial time point of the control analysis
 % A: causal/direct network (dX/dt = AX)
 % X_tf: column vector of final/desir    ed state space
@@ -19,6 +19,9 @@ end
 if nargin < 7
     time_step = (tf-t0)/1000;
 end
+
+Us_MECS = zeros(N_nodes, length(t0:time_step:tf));
+
 for i = 1:length(driver_nodes)
     disp(['Driver -> ' num2str(driver_nodes(i))]);
     driver_node = driver_nodes(i);
@@ -32,7 +35,7 @@ for i = 1:length(driver_nodes)
     
     B  = B0;
     % Input signal for driver node
-    B(driver_node,i) = 1;
+    B(driver_node,1) = 1;
     
     % Calculating Gramian
     % dt = mean(diff(Times_state));
@@ -44,6 +47,8 @@ for i = 1:length(driver_nodes)
     U_MECS = zeros(size(B,2),length(Times_state));
     diff_output = (X_in_Times(:,end) - X_tf);
     U_MECS = -B'*multi_expv(tf - Times_state, A, inv_control_gramian*diff_output);
+    
+    Us_MECS(i,:) = U_MECS;
     MECS_times = sum(U_MECS.^2)*time_step; % control energy associated with the optimal control strategy.
     
     % Total Energy:

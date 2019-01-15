@@ -2,7 +2,7 @@
 %
 % Compare MECS from different A matrices
 
-load('.\output\MECS_matrices.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
+load('.\output\MECS_matrices_BN_diagonal.mat','MECS_matrices', 'As', 'Anames', 'rec_list', 'reg_list');
 
 N_REGS = 20;
 N_RECS = 15;
@@ -123,7 +123,7 @@ end
 %    BN.tree : ClusterSetTree instantiated by LearnParams()
 %  VERBOSE : if true increases output. default = false;
 
-A_m_bn = As(:,:,18);
+%A_m_bn = As(:,:,18);
 %A_hm_bn = As(:,:,19); Predict human WT
 
 %discrete = zeros(N_RECS); discrete(N_RECS) = 1;
@@ -164,6 +164,7 @@ nodes_from_adj = BNfromAdjMat(A_m_bn, discrete, Signal_names);
 [tree, nodes] = LearnParams(nodes_from_adj, '', Signal, Signal_names, priorPrecision);
 
 %%
+
 fprintf(1,'Learning Most Predictive Network Structure for %s\n', analysis_title);
 [MBNet, FullBN, outstats] = LearnStructure(Signal, Signal_names, pheno, priorPrecision, [analysis_title,'-net']);
 % fprintf(1,'Learning Network Parameters\n');
@@ -181,10 +182,12 @@ fprintf(1,'Learning Most Predictive Network Structure for %s\n', analysis_title)
 % imagesc(FullBN.adjmat)
 
 
-nodes_from_FullBN_adj = BNfromAdjMat(FullBN.adjmat, discrete, Signal_names);
+nodes_from_FullBN_adj = BNfromAdjMat(MBNet.adjmat, discrete, Signal_names);
 
 fprintf(1,'BN from Adj\n');
-[tree, nodes] = LearnParams(nodes_from_FullBN_adj, '', Signal, Signal_names, priorPrecision);
+% TRY: BootsAdjMatMice(1:N_RECS, 1:N_RECS);nodes_from_FullBN_adj
+load('.\output\A_{m,bn}_non_norm.mat');
+[tree, nodes] = LearnParams(BootsAdjMatMice(1:N_RECS, 1:N_RECS), '', Signal, Signal_names, priorPrecision);
 
 FullBN.nodes = nodes;
 FullBN.tree = tree;
