@@ -17,7 +17,9 @@
 % AMPA NMDA kainate muscimol flum cgp pire oxo damp epib praz rx dpat keta sch]
 
 cd('/export02/data/Work/rec-rec')
-addpath('/export02/data/Work/MATLAB/spm12')
+addpath('/export02/data/Work/conn18b')
+
+addpath(genpath('/export02/data/Work/MATLAB/'))
 
 rec_list = ["AMPA", "NMDA", "kainate", "muscimol", "flum", "cgp", "pire", ...
     "oxo", "damp", "epib", "praz", "rx", "dpat", "keta", "sch", "5-HT1A", ...
@@ -26,7 +28,8 @@ rec_types = ["glut", "glut", "glut", "GABA", "GABA", "GABA", "ACh", "ACh", ...
     "ACh", "ACh", "nor", "??", "ser", "ser", "dopamine", "ser", "ser", "ser", "ser"];
 
 
-% Serotonin map data (Med Uni Wien)
+% Serotonin map data (Lanzenburger, Med Uni Wien)
+% Receptor binding potential
 paths_serotonin_maps = ["data/SerotoninMaps/5-HT1A/rWAY_HC36_mean.hdr", ...
 "data/SerotoninMaps/5-HT1B/rP943_HC22_mean.hdr", ...
 "data/SerotoninMaps/5-HT2A/rALT_HC19_mean.hdr", ...
@@ -400,7 +403,7 @@ disp("3) Structural connectivity interpolation")
 % Regional structural (anatomical) connectivity
 hcp_conn = load('data/tractography/hcp_fib_conn.mat'); % Averaged
 %ntu_conn = load('data/tractography/ntu_src_conn.mat'); % Individual
-sc = zscore(hcp_conn.connectivity);
+sc = hcp_conn.connectivity;%zscore(hcp_conn.connectivity);
 
 % Interpolation
 % 0 entries on regions without data 
@@ -611,79 +614,91 @@ for rec=1:N_recs_5ht
     Z0_5ht(:, rec) = Z0_5ht(:, rec) / sum(Z0_5ht(:, rec));
 end
 %% Combine multimodal data
-% [CSF, A-beta, functional connectivity, glucose metabolism, GM density, tau]
+% [CBF, A-beta, functional activity, glucose metabolism, GM density, tau]
 
 load('data/global_data_ADNI_standarization_3_atlas_JulichB.mat');
 
 N_subjects = size(global_data, 2);
 N_regs = size(Z0_Julich_scat, 1);
 N_facs = size(global_data(1).X0, 1) / N_regs;
-X0 = zeros(N_subjects, N_facs, N_regs);
-diagnoses = zeros(1, N_subjects);
 
-for subj=1:N_subjects
-   % Check correct dimensions order
-   temp = reshape(global_data(subj).X0, N_facs, N_regs);
-   % [N_subjects, N_regions, N_factors]
-   X0(subj, :, :) = permute(temp, [1 3 2]);
-   diagnoses(1, subj) = global_data(subj).diags;
-end
 
 %% Combine receptor types
-
-Z0_t = cat(2, Z0_Julich_regressed, Z0_5ht);
+scaling_factor = mean(mean(Z0_Julich_regressed)) / mean(mean(Z0_5ht));
+Z0_t = cat(2, Z0_Julich_regressed, Z0_5ht * scaling_factor);
 Z0 = Z0_t';
 
 %% Estimate interfactor interactions
 
 % Interaction coefficients as correlations between factors for all subjects
 % in each region with data
-% [CSF, A-beta, fMRI, glucose metabolism, GM density, tau]
+% [CBF, A-beta, fMRI, glucose metabolism, GM density, tau]
 
 N_factors = size(X0, 2);
 alphas_corr = zeros(N_regs_data, N_factors, N_factors);
 
 ind_healthy = find(diagnoses == 1);
-
-
-for i_reg=1:N_regs_data
-    reg = ind_regs_data(i_reg);
-    for i_tar=1:N_factors
-        
-        src = squeeze(X0(ind_healthy, i_tar, reg));
-        
-        % Symmetric matrix, only fill half
-        for j=i_tar:N_factors
-            tar = squeeze(X0(ind_healthy, j, reg));
-            
-	
-            alphas_corr(i_reg, i_tar, j) = corr(src, tar);
-        end
-    end
-    
-    % Zero diagonals
-    alphas_corr(i_reg, :, :) = squeeze(alphas_corr(i_reg, :, :)) + squeeze(alphas_corr(i_reg, :, :))'- diag(ones(N_factors, 1));
-end
+ind_AD = find(diagnoses == 4);
+% 
+% for i_reg=1:N_regs_data
+%     reg = ind_regs_data(i_reg);
+%     for i_tar=1:N_factors
+%         
+%         src = squeeze(X0(ind_healthy, i_tar, reg));
+%         
+%         % Symmetric matrix, only fill half
+%         for j=i_tar:N_factors
+%             tar = squeeze(X0(ind_healthy, j, reg));
+%             alphas_corr(i_reg, i_tar, j) = corr(src, tar);
+%         end
+%     end
+%     
+%     % Zero diagonals
+%     alphas_corr(i_reg, :, :) = squeeze(alphas_corr(i_reg, :, :)) + squeeze(alphas_corr(i_reg, :, :))'- diag(ones(N_factors, 1));
+% end
 
 
 %% Alternative alpha - regression coefficients not corr
 
-alphas_regress = zeros(N_regs_data, N_factors, N_factors);
+alphas_XX = zeros(N_regs_data, N_factors, N_factors); % Regional
+alphas_ZZ = zeros(N_recs_J + N_recs_5ht, N_recs_J + N_recs_5ht); % Global
+
+% Normalize along factors (healthy patients only - all patients or individually?)
+% Don't norm - linearly dependent 
+%norm_X0 = zscore(X0(ind_healthy, :, :), 1, 2);
+norm_X0 = X0(ind_healthy, :, :);
+
+% In each region, what are the regression coefficients of all other factors
+% wrt each factor
 for i_reg=1:N_regs_data
     reg = ind_regs_data(i_reg);
     
     for i_tar=1:N_factors
         
-        tar = squeeze(X0(ind_healthy, i_tar, reg));
-        ind_srcs = setdiff(1:N_factors, i_tar);
-        srcs = squeeze(X0(ind_healthy, ind_srcs, reg));
+        tar = squeeze(norm_X0(:, i_tar, reg));
+        ind_srcs = setdiff(1:N_factors, i_tar);    
+        srcs = squeeze(norm_X0(:, ind_srcs, reg));
         b = regress(tar, srcs);
         
         % Zero diagonals
-        alphas_regress(i_reg, ind_srcs, i_tar) = b;
+        alphas_XX(i_reg, ind_srcs, i_tar) = b;
     end
+end
+
+% Normalize along receptors
+%norm_Z0 = zscore(Z0, 1, 1);
+norm_Z0 = Z0;
+for i_tar=1:(N_recs_J + N_recs_5ht)
+    tar = squeeze(norm_Z0(i_tar, :));
+    ind_srcs = setdiff(1:(N_recs_J + N_recs_5ht), i_tar);
+    srcs = squeeze(norm_Z0(ind_srcs, :));
+    b = regress(tar', srcs');
+    
+    % Zero diagonals
+    alphas_ZZ(ind_srcs, i_tar) = b;
     
 end
+
 
 %% Neurovascular coupling for each region
 
@@ -692,9 +707,11 @@ mean_fALFF = squeeze(mean(X0(ind_healthy, 3, ind_regs_data), 1));
 
 nvc = mean_cbf ./ mean_fALFF;
 
-%% Predictability of neurovascular coupling
+mean_cbf_AD = squeeze(mean(X0(ind_AD, 1, ind_regs_data), 1));
+mean_fALFF_AD = squeeze(mean(X0(ind_AD, 3, ind_regs_data), 1));
+nvc_AD = mean_cbf_AD ./ mean_fALFF_AD;
 
-% Todo: Just data 
+%% Predictability of neurovascular coupling
 
 % From NT-R
 rs_nt_nvc = zeros(size(Z0, 1), 1);
@@ -738,11 +755,12 @@ figure(100);
 title('Neurovascular Coupling')
 x = 1:numel(nvc);
 hold on
-scatter(x,nvc)
-scatter(x,nvc_pred)
+scatter(x, nvc)
+scatter(x, nvc_pred)
+scatter(x, nvc_AD)
 xlabel("Region");
 ylabel("NVC");
-legend("Actual", "Predicted");
+legend("Healthy", "Predicted Healthy", "AD");
 hold off
 
 
@@ -758,56 +776,76 @@ legend("Error", "Predicted");
 hold off
 
 
-%% Receptor-factor interactions (not regional)
+%% Global receptor-factor interactions
 
 % Todo: non-linear model?
-XZ0 = cat(1, squeeze(mean(X0,1)), Z0); 
+XZ0 = cat(1, squeeze(mean(X0(ind_healthy, :, :),1)), Z0); 
 XZ0_normed = normalize(XZ0, 1);
 
 % Ignore X-X interactions from this matrix
 N_factors_receptors = size(XZ0, 1);
 alphas_XZ = zeros(N_factors_receptors, N_factors_receptors);
 
-for i_reg=1:N_regs_data
-    reg = ind_regs_data(i_reg);
+for i_tar=1:N_factors_receptors
+       
+    tar = squeeze(XZ0(i_tar, ind_regs_data));
     
-    for i_tar=1:N_factors_receptors
-        
-        tar = squeeze(XZ0(ind_healthy, i_tar, reg));
+    % Ignore X-X factor interactions from this matrix
+    if i_tar <= N_factors
+        ind_srcs = N_factors+1:N_factors_receptors;
+    else
         ind_srcs = setdiff(1:N_factors_receptors, i_tar);
-        srcs = squeeze(XZ0(ind_healthy, ind_srcs, reg));
-        b = regress(tar, srcs);
-        
-        % Zero diagonals
-        alphas_XZ(i_reg, ind_srcs, i_tar) = b;
     end
+      
+    srcs = XZ0(ind_srcs, ind_regs_data);
+    b = regress(tar', srcs');
     
+    % Zero diagonals
+    alphas_XZ(ind_srcs, i_tar) = b;
 end
 
 
+%% X-X alphas as a function of Z0
+
+alphas_XX_diag = zeros(N_regs_data, (N_factors -1), N_factors);
+for tar=1:N_factors
+    alphas_XX_diag(:, :, tar) = alphas_XX(:, setdiff(1:N_factors, tar), tar);
+end
+
+alphas_XX_diag = reshape(alphas_XX_diag, N_regs_data, N_factors * (N_factors-1));
+
+%cftool;
+%% Vascular connectivity
+% GENIE3
+
+cbf = squeeze(X0(ind_healthy, 1, ind_regs_data));
+vc = genie3(cbf);
+vc = vc + (eye(size(vc)) - diag(sum(abs(vc))));
+
+vc_sign = vc .* sign(corrcoef(cbf));
+vc_sign = vc_sign + (eye(size(vc_sign)) - diag(sum(abs(vc_sign))));
+
 
 %% Visualize interpolation
-
-% 
-% for rec=1:size(reg_rec_densities, 2)
-%     V_rec_data = zeros(size(V_JB));
+% for rec=1:size(Z0_Julich_regressed,2)
+%     %V_rec_data = zeros(size(V_JB));
 %     V_rec_interp = zeros(size(V_JB));
 %     
 %     
-%     data = 255 * Y_train(:, rec) / max(Y_train(:, rec));
+%     %data = 255 * Y_train(:, rec) / max(Y_train(:, rec));
 %     
-%     interp = 255 * interp_rec(:, rec) / max(interp_rec(:, rec));
+%     interp = 255 * Z0_Julich_regressed(:, rec) / max(Z0_Julich_regressed(:, rec));
 %     
-%     for reg=1:size(reg_rec_densities, 1)
+%     for reg=1:size(Z0_Julich_regressed, 1)
 %         % Set region to interpolated or actual centroid value
 %         
 %         reg_JB = reg_indices_lr(reg);
 %         ind = find(V_JB == reg_JB);
 % 
 %         % Same data for both hemispheres
-%         if reg <= size(Y_train, 1) / 2
-%             V_rec_data(ind) = data(reg);
-%         end
+%         %if reg <= size(Y_train, 1) / 2
+%         %    V_rec_data(ind) = data(reg);
+%         %end
 %         
 %         % Left hemisphere
 %         if reg <= max(V_JB(:))
@@ -820,12 +858,73 @@ end
 %         V_rec_interp(ind_split) = interp(reg);
 %     end
 %     
-%     V = f_Brodmann;
-%     V.fname = [sprintf('data/AtlasesMRI/[Data]Rec%d.nii', rec)];
-%     spm_write_vol(V,V_rec_data)
+% %     V = f_Brodmann;
+% %     V.fname = [sprintf('data/AtlasesMRI/[Data]Rec%d.nii', rec)];
+% %     spm_write_vol(V,V_rec_data)
 %     
 %     V = f_Brodmann;
 %     V.fname = [sprintf('data/AtlasesMRI/[Interp]Rec%d.nii', rec)];
 %     spm_write_vol(V,V_rec_interp)
 % end
+%%
+Z0_normalized = normalize(Z0, 2);
 
+[A_corr, p] = corrcoef(Z0_normalized');
+A_genie = genie3(Z0_normalized');
+A_genie = A_genie + (eye(size(A_genie)) - diag(sum(abs(A_genie))));
+
+
+%% Load functional connectivity
+
+
+dir_fmri = dir("./data/ADNI_rFMRI/");
+N_fmri_subjects = size(dir_fmri, 1) - 2; % Skip ., ..
+fmri_mats = zeros(N_fmri_subjects, 3); % {0,1} if matrix exists
+fmri_subject_ids = [];
+
+fmri_causality = zeros(N_fmri_subjects, N_regs, N_regs); % Averaged 
+fmri_partial_corr = zeros(N_fmri_subjects, N_regs, N_regs); % Averaged
+fmri_fALFF = zeros(N_fmri_subjects, N_regs); % fALFF
+
+for i=3:size(dir_fmri, 1)
+    curr_dir = dir_fmri(i);
+    fmri_subject_ids = [fmri_subject_ids string(curr_dir.name)];
+    
+   pre = strcat(curr_dir.folder, "/", curr_dir.name, "/rFMRI_regions_");
+     if exist(strcat(pre, "causality.mat"), 'file') == 2
+         temp = load(strcat(pre, "causality.mat"));
+         fmri_causality(i-2, :, :) = squeeze(mean(temp.CausalMatrix, 3));
+         fmri_mats(i-2, 1) = 1;
+     end
+     if exist(strcat(pre, "partial_correlations_v2.mat"), 'file') == 2
+         temp = load(strcat(pre, "partial_correlations_v2.mat"));
+         fmri_partial_corr(i-2, :, :) = squeeze(mean(temp.PartialCorrelationMatrix, 3));
+         fmri_mats(i-2, 2) = 1;
+     end
+     if exist(strcat(pre, "v2.mat"), 'file') == 2
+         temp = load(strcat(pre, "v2.mat"));
+         fmri_fALFF(i-2, :) = squeeze(mean(temp.fALFF_regions, 2));
+         fmri_mats(i-2, 3) = 1;
+     end
+end
+
+save('./output/fmri_subject_ids.mat', 'fmri_subject_ids');
+
+mean_fmri_causality = squeeze(mean(fmri_causality, 1));
+mean_fmri_pc = squeeze(mean(fmri_partial_corr, 1));
+mean_fmri_fALFF = squeeze(mean(fmri_fALFF, 1));
+ 
+% A_h_genie_sign = A_h_genie .* sign(A_h_corr);
+% A_h_genie_sign = A_h_genie_sign + (eye(size(A_h_genie_sign)) - diag(sum(abs(A_h_genie_sign))));
+% 
+% % Only significant (p<0.05) correlations
+% A_h_genie_pval = A_h_genie_sign; 
+% p_indices = find(p>=0.05);  
+% A_h_genie_pval(p_indices) = 0; % Todo: add diagonal?
+% 
+% % Network deconvolution on A matrix
+% A_h_ND_corr = ND(A_h_corr);
+% A_h_ND_genie = ND(A_h_genie);
+% A_h_pc = partialcorr(human_normed);
+% 
+% dS/dt = interactions + spreading

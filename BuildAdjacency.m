@@ -19,6 +19,8 @@
 % [AMPA NMDA kainate muscimol flum cgp pire oxo damp epib praz [rx/uk14] dpat keta
 % sch]
 
+addpath(genpath('/export02/data/Work/MATLAB/'))
+
 % Same receptor order as human data, A matrix
 rec_list = {'AMPA', 'MK80', 'KAIN', 'MUSC', 'FLUM', 'CGP5', 'PIRE', 'OXOT', 'DAMP', 'EPIB', 'PRAZ', 'UK14', 'KETA', 'DPAT', 'SCH2'};
 reg_list = {'Au1_l', 'Au1_r', 'C_l', 'C_r', 'CM', 'CPu_l', 'CPu_r', 'Hip_l', 'Hip_r', 'M1_l', 'M1_r', 'RN', 'S1BF_l', 'S1BF_r', 'V1_l', 'V1_r', 'VPL_l', 'VPL_r', 'VPM_l', 'VPM_r'};
@@ -26,9 +28,9 @@ reg_list = {'Au1_l', 'Au1_r', 'C_l', 'C_r', 'CM', 'CPu_l', 'CPu_r', 'Hip_l', 'Hi
 N_REGS = numel(reg_list);
 N_RECS = numel(rec_list);
 
-ctrl_dens = importdata('.\output\imputed_ctrl_densities.mat');
+ctrl_dens = importdata('./output/imputed_ctrl_densities.mat');
 n_data_ctrl = size(ctrl_dens);
-ko_dens = importdata('.\output\imputed_ko_densities.mat');
+ko_dens = importdata('./output/imputed_ko_densities.mat');
 n_data_ko = size(ko_dens);
 
 % Combine data from all regions for more points
@@ -36,7 +38,7 @@ ctrl_dens = reshape(ctrl_dens, [n_data_ctrl(1)*n_data_ctrl(2) n_data_ctrl(3)]);
 ko_dens = reshape(ko_dens, [n_data_ko(1)*n_data_ko(2) n_data_ko(3)]);
 
 % Load Julich human data to generate A matrices
-human_data = xlsread('.\data\Human\receptor_data.xls');
+human_data = xlsread('./data/Human/receptor_data.xls');
 data_size = size(human_data);
 human_data = human_data(:, 2:data_size(2));
 
@@ -47,6 +49,7 @@ ctrl_normed = (ctrl_dens - repmat(ctrl_mean,[size(ctrl_dens,1) 1]))./repmat(ctrl
 
 human_mean = mean(human_data); 
 human_std = std(human_data);
+
 human_normed = (human_data - repmat(human_mean,[size(human_data,1) 1]))./repmat(human_std,[size(human_data,1) 1]);
 
 % Normalize KO data using control normalization parameters
@@ -74,7 +77,7 @@ human_normed = human_data;
 disp('Building human adjacency matrices')
 
 % Load human A matrix
-human_A = importdata('.\data\Human\A_recp_vs_recp_matrix_human.mat');
+human_A = importdata('./data/A_recp_vs_recp_matrix_human.mat');
 A_h_unsign = human_A.A_human;
 A_h_unsign = A_h_unsign + (eye(size(A_h_unsign)) - diag(sum(abs(A_h_unsign))));
 
@@ -129,6 +132,14 @@ A_m_ND_genie = ND(A_m_genie);
 %A_ND = A_ND + (eye(size(A_ND)) - diag(sum(abs(A_ND))));
 A_m_pc = partialcorr(ctrl_normed);
 
+A_m_pc = A_m_pc - diag(diag(A_m_pc));
+% 
+% figure(1);
+% A = imagesc(A_m_pc);
+% title('Receptor Interactions');
+% xlabel('Receptors');
+% ylabel('Receptors');
+% saveas(A,'mice_rec','png')
 
 %% Bayesian networks - Mice
 disp('Bayesian networks')
