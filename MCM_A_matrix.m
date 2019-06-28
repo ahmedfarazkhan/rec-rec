@@ -16,7 +16,7 @@ load('before_A.mat');
 
 DIAG_ID = 1;
 
-%% Order healthy subjects by age 
+%% Order subgroup subjects by age 
 
 % X0 is averaged and normalized data for each subject
 X0_combined = zeros(N_facs * N_regs, N_subjects);
@@ -73,28 +73,28 @@ ind_healthy = find(subject_diags == DIAG_ID);
 healthy_S = S_combined(:, ind_healthy);
 sorted_mean_times_healthy = sorted_min_times(ind_healthy);
 
-ind_healthy_X0 = find(individual_diags == DIAG_ID);
-healthy_X0 = X0_combined(:, ind_healthy_X0);
-healthy_ages = min_ages(ind_healthy_X0);
-[sorted_ages, sorted_healthy_ind_X0] = sort(healthy_ages);
-sorted_healthy_X0 = healthy_X0(:, sorted_healthy_ind_X0);
-N_healthy = numel(ind_healthy_X0);
+ind_diag_X0 = find(individual_diags == DIAG_ID);
+diag_X0 = X0_combined(:, ind_diag_X0);
+diag_ages = min_ages(ind_diag_X0);
+[sorted_ages, sorted_diag_ind_X0] = sort(diag_ages);
+sorted_diag_X0 = diag_X0(:, sorted_diag_ind_X0);
+N_diag = numel(ind_diag_X0);
 
 
 %% Regression for receptor-factor interactions + factor diffusion
 
 % Treat 0s as missing data
-healthy_X_reg = reshape(sorted_healthy_X0, N_regs, N_facs, numel(ind_healthy_X0));
+diag_X_reg = reshape(sorted_diag_X0, N_regs, N_facs, numel(ind_diag_X0));
 %healthy_X_reg(healthy_X_reg == 0) = NaN;
 
 %dS_dt = zeros((N_healthy -1)* N_regs, N_facs);
-dS_dt = zeros(N_healthy - 1, N_regs, N_facs);
-for i=1:N_healthy - 1
+dS_dt = zeros(N_diag - 1, N_regs, N_facs);
+for i=1:N_diag - 1
     dt = sorted_ages(i+1) - sorted_ages(i);
     if dt~=0
         for j=1:N_regs
             %dS_dt(((i-1)*N_regs) + j, :) = squeeze(healthy_X_reg(j,:,i+1) - healthy_X_reg(j,:,i)) / dt;
-            dS_dt(i, j, :) = squeeze(healthy_X_reg(j,:,i+1) - healthy_X_reg(j,:,i)) / dt;
+            dS_dt(i, j, :) = squeeze(diag_X_reg(j,:,i+1) - diag_X_reg(j,:,i)) / dt;
         end
     end
 end
@@ -119,9 +119,12 @@ bs = zeros(N_facs * N_facs, N_recs_J + N_recs_5ht + 1);
 bs_lasso = zeros(N_facs * N_facs, N_recs_J + N_recs_5ht + 1);
 visual_bs = zeros(N_facs * N_facs, N_recs_J + N_recs_5ht);
 
+% Normalize receptors
+Z0_norm = normalize(Z0, 2);
+
 for ff=1:N_facs*N_facs
 
-    X = [ones(N_regs, 1) Z0'];
+    X = [ones(N_regs, 1) Z0_norm'];
     y = A_ffs_flat(:, ff);
     
     bs(ff, :) = regress(y,X);
@@ -167,7 +170,7 @@ ylabel("Factor-Factor Interaction");
 % y = Xb 
 % X = [1 Re C*S]
 
-%S = healthy_X_reg;
+S = diag_X_reg;
 % Receptor interactions, factor interactions, spreading, no inputs
 N_params = N_recs_J + N_recs_5ht + (N_facs - 1) + (N_regs - 1);
 bs = zeros(N_regs, N_facs, N_params);
@@ -191,7 +194,7 @@ bs_bhs = zeros(N_regs, N_facs, N_params);
         conn_S = conn_reg .* squeeze(S(ind_other_regs, fac, :))';
         inter_fac = squeeze(S(reg, ind_other_facs, :))';
 
-        X = [ones(N_healthy, 1) repmat(squeeze(Z0(:, reg)'), N_healthy, 1) inter_fac conn_S];
+        X = [ones(N_diag, 1) repmat(squeeze(Z0(:, reg)'), N_diag, 1) inter_fac conn_S];
 
         % Normalize X first?
 
